@@ -26,23 +26,26 @@ def fuzzify(application, fuzzySetsDict):
         for fuzzySet in fuzzySetsDict.values():
             if fuzzySet.var == var:
                 fuzzySet.memDegree = skf.interp_membership(fuzzySet.x, fuzzySet.y, value)
+                print(f"Fuzzified {var} with value {value}: {fuzzySet.label} membership degree = {fuzzySet.memDegree}")
 
 def apply_rules(rules, fuzzySetsDict):
     """
     Apply the rules to the fuzzy sets to infer the risk level.
     """
     for rule in rules:
-        min_strength = min([fuzzySetsDict[antecedent].memDegree for antecedent in rule.antecedent])
+        antecedent_degrees = [fuzzySetsDict[antecedent].memDegree for antecedent in rule.antecedent]
+        min_strength = min(antecedent_degrees)
         rule.strength = min_strength
+        print(f"Applying rule {rule.ruleName}: min_strength = {min_strength}")
         if rule.consequent in fuzzySetsDict:
             fuzzySetsDict[rule.consequent].memDegree = max(fuzzySetsDict[rule.consequent].memDegree, min_strength)
+            print(f"Updated {rule.consequent} membership degree to {fuzzySetsDict[rule.consequent].memDegree}")
 
 def defuzzify(fuzzySetsDict):
     """
     Defuzzify the output fuzzy set to get a crisp value.
     """
-    # Debugging: Print 'risk' fuzzy set details
-    print("Defuzzifying 'risk' fuzzy set")
+    print("Defuzzifying 'Risk' fuzzy sets")
     combined_x = None
     combined_y = None
     for label in ['Risk=LowR', 'Risk=MediumR', 'Risk=HighR']:
@@ -52,7 +55,8 @@ def defuzzify(fuzzySetsDict):
                 combined_x = np.linspace(fs.x[0], fs.x[-1], 1000)
                 combined_y = np.zeros_like(combined_x)
             fs_y_interp = skf.interp_membership(fs.x, fs.y, combined_x)
-            combined_y = np.fmax(combined_y, fs_y_interp)
+            combined_y = np.fmax(combined_y, fs_y_interp * fs.memDegree)
+            print(f"{label} membership degree = {fs.memDegree}")
     if combined_x is not None and combined_y is not None:
         return skf.defuzz(combined_x, combined_y, 'centroid')
     else:
